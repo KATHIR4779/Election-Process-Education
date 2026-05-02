@@ -4,17 +4,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     let chatHistory = [];
 
+    const formatMarkdown = (text) => {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^\* (.*)/gm, '<li>$1</li>')
+            .replace(/\n/g, '<br>');
+    };
+
     const addMessage = (text, sender) => {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender);
-        
-        // Simple markdown parsing
-        const formattedText = text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^\* (.*)/gm, '<li>$1</li>');
-        
-        messageDiv.innerHTML = formattedText;
+        messageDiv.innerHTML = formatMarkdown(text);
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         return messageDiv;
@@ -27,9 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage(message, 'user');
         userInput.value = '';
         
-        // Create an empty system message for streaming
-        const systemMessageDiv = addMessage('...', 'system');
-        let fullResponse = "";
+        const loadingDiv = addMessage('<em>Thinking...</em>', 'system');
 
         try {
             const response = await fetch('/api/chat', {
@@ -38,34 +37,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ message, history: chatHistory })
             });
 
-            if (!response.ok) throw new Error('API Error');
+            const data = await response.json();
+            chatMessages.removeChild(loadingDiv);
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            systemMessageDiv.innerHTML = ""; // Clear the loader
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value, { stream: true });
-                fullResponse += chunk;
-                
-                // Real-time markdown parsing
-                systemMessageDiv.innerHTML = fullResponse
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                    .replace(/^\* (.*)/gm, '<li>$1</li>')
-                    .replace(/\n/g, '<br>');
-                
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+            if (data.error) {
+                addMessage(`Error: ${data.error}`, 'system');
+            } else {
+                addMessage(data.response, 'system');
+                chatHistory.push({ role: 'user', parts: [{ text: message }] });
+                chatHistory.push({ role: 'model', parts: [{ text: data.response }] });
             }
-
-            chatHistory.push({ role: 'user', parts: [{ text: message }] });
-            chatHistory.push({ role: 'model', parts: [{ text: fullResponse }] });
-
         } catch (error) {
-            systemMessageDiv.innerHTML = "<em>I encountered an error. Please check your connection.</em>";
+            chatMessages.removeChild(loadingDiv);
+            addMessage("Unable to connect to the server. Please check your internet connection.", 'system');
         }
     };
 
@@ -121,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let showAll = false;
     const INITIAL_LIMIT = 8;
 
-    const observerOptions = { threshold: 0.1 };
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -129,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 entry.target.style.transform = 'translateY(0)';
             }
         });
-    }, observerOptions);
+    }, { threshold: 0.1 });
 
     const renderStates = (filter = "") => {
         stateGrid.innerHTML = "";
@@ -159,9 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     renderStates();
-
     stateSearch.addEventListener('input', (e) => renderStates(e.target.value));
-
     seeMoreBtn.addEventListener('click', () => {
         showAll = true;
         renderStates(stateSearch.value);
