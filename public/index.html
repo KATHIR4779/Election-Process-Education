@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bharat Voter Guide | Indian Election Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <nav class="glass-nav">
+        <div class="logo">
+            <i class="fas fa-vote-yea"></i>
+            <span>Bharat<span>Voter</span></span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#process" class="active">Process</a></li>
+            <li><a href="#states">States</a></li>
+            <li><a href="#guide">Step-by-Step</a></li>
+            <li><a href="#assistant">AI Assistant</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="hero" class="hero-section">
+            <div class="hero-content">
+                <h1>Empowering the <span class="text-gradient">Indian Electorate</span></h1>
+                <p>Every vote counts in the world's largest democracy. Learn how to participate effectively in the Indian electoral journey.</p>
+                <div class="hero-btns">
+                    <a href="#guide" class="btn btn-primary">How to Vote</a>
+                    <a href="#assistant" class="btn btn-secondary">Ask Assistant</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="card-stack">
+                    <div class="card glass-card">
+                        <i class="fas fa-id-card"></i>
+                        <h3>Register</h3>
+                        <p>Get your EPIC card ready</p>
+                    </div>
+                    <div class="card glass-card">
+                        <i class="fas fa-check-to-slot"></i>
+                        <h3>Choose</h3>
+                        <p>Research your candidates</p>
+                    </div>
+                    <div class="card glass-card">
+                        <i class="fas fa-fingerprint"></i>
+                        <h3>Vote</h3>
+                        <p>Visit your polling station</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="process" class="features-section">
+            <h2 class="section-title">The Electoral Process</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon-box saffron"><i class="fas fa-user-plus"></i></div>
+                    <h3>Registration</h3>
+                    <p>Form 6 is your entry to the electoral roll. Apply online via Voter Service Portal or mobile app.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box white"><i class="fas fa-bullhorn"></i></div>
+                    <h3>Campaigning</h3>
+                    <p>Understand the Model Code of Conduct that parties must follow during the election period.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box green"><i class="fas fa-box-archive"></i></div>
+                    <h3>Polling Day</h3>
+                    <p>Step-by-step verification at the booth, marking of indelible ink, and pressing the EVM button.</p>
+                </div>
+            </div>
+        </section>
+        <section id="states" class="states-section">
+            <h2 class="section-title">State-wise Information</h2>
+            <p class="section-subtitle">Find specific details, electoral rolls, and CEO websites for your state.</p>
+            <div class="state-search-container">
+                <div class="search-box glass-card">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="state-search" placeholder="Search for your state (e.g. Maharashtra, Uttar Pradesh)...">
+                </div>
+            </div>
+            <div class="state-grid" id="state-grid">
+                <!-- State cards will be dynamically populated by script.js -->
+            </div>
+            <div class="see-more-container">
+                <button id="see-more-btn" class="btn btn-secondary">See More States <i class="fas fa-chevron-down"></i></button>
+            </div>
+        </section>
+
+        <section id="guide" class="guide-section">
+            <h2 class="section-title">Step-by-Step Voting Guide</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-dot">1</div>
+                    <div class="timeline-content glass-card">
+                        <h3>Verification</h3>
+                        <p>First Polling Officer checks your name on the electoral roll and ID proof (Aadhar/Voter ID).</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot">2</div>
+                    <div class="timeline-content glass-card">
+                        <h3>The Mark</h3>
+                        <p>Second Polling Officer marks your finger with indelible ink and gives you a slip.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot">3</div>
+                    <div class="timeline-content glass-card">
+                        <h3>The Vote</h3>
+                        <p>Third Officer takes the slip. You proceed to the voting compartment to press the EVM button.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot">4</div>
+                    <div class="timeline-content glass-card">
+                        <h3>Confirmation</h3>
+                        <p>The VVPAT machine displays a slip for 7 seconds showing your chosen candidate. Be sure to check it!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="assistant" class="assistant-section">
+            <div class="chat-container glass-card">
+                <div class="chat-header">
+                    <div class="status-dot"></div>
+                    <h3>BharatVoter AI Assistant</h3>
+                </div>
+                <div id="chat-messages" class="chat-messages">
+                    <div class="message system">
+                        Namaste! I'm your AI assistant. How can I help you today with information about Indian elections?
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="user-input" placeholder="Ask about registration, forms, or EVMs...">
+                    <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Bharat Voter Guide. Information provided is based on official ECI guidelines.</p>
+        <p><a href="https://voters.eci.gov.in/" target="_blank" style="color: var(--secondary); text-decoration: none;">Verify on Official ECI Portal <i class="fas fa-external-link-alt"></i></a></p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
