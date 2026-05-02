@@ -5,6 +5,19 @@ A premium, interactive educational platform designed to empower Indian citizens 
 ![Project Preview](https://drive.google.com/file/d/1J439mCqDTU1t9nk-r7oBGDFrNDun6cRP/view?usp=drive_link)
 
 
+## 🎯 Hackathon Focus (PromptWars: Virtual)
+
+- **Chosen Vertical**: Civic Tech / Public Education.
+- **Approach & Logic**: We utilize a **Hybrid Grounding Logic**. While the AI (Gemini 3 Flash) handles complex procedural queries, we use a deterministic data layer for state-specific links and a step-by-step UI for the voting guide. This ensures that high-stakes information (like state URLs) is 100% accurate, while the AI provides flexible guidance on "How-to" registration steps.
+- **How the Solution Works**: 
+    1. **The Core**: A Node.js backend connects to the Gemini API with a heavily engineered system prompt that acts as a "Guardrail."
+    2. **The Grounding**: The AI is instructed to prioritize ECI forms and redirect to `voters.eci.gov.in` for real-time dates.
+    3. **The Interface**: A premium glassmorphic UI built with Vanilla JS for zero-latency interactions, featuring an interactive state directory and a visual voting timeline.
+- **Assumptions Made**:
+    - Users have basic internet connectivity to access the ECI portals.
+    - Official ECI form names (Form 6, 7, 8) remain consistent.
+    - Users are seeking educational guidance rather than legal representation.
+
 ## 🌟 Key Features
 
 - **BharatVoter AI Assistant**: A conversational AI grounded in official ECI guidelines. It answers queries about registration, forms (6, 8), and voting procedures without hallucinating dates.
