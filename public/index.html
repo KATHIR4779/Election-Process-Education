@@ -9,21 +9,31 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
 </head>
 <body>
+    <a href="#hero" class="skip-link">Skip to main content</a>
     <div class="background-blobs">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
 
-    <nav class="glass-nav">
-        <div class="logo">
-            <i class="fas fa-vote-yea"></i>
+    <nav class="glass-nav" aria-label="Main Navigation">
+        <div class="logo" aria-label="BharatVoter Logo">
+            <i class="fas fa-vote-yea" aria-hidden="true"></i>
             <span>Bharat<span>Voter</span></span>
         </div>
         <ul class="nav-links">
-            <li><a href="#process" class="active">Process</a></li>
+            <li><a href="#process" class="active" aria-current="page">Process</a></li>
             <li><a href="#states">States</a></li>
             <li><a href="#guide">Step-by-Step</a></li>
             <li><a href="#assistant">AI Assistant</a></li>
@@ -40,7 +50,7 @@
                     <a href="#assistant" class="btn btn-secondary">Ask Assistant</a>
                 </div>
             </div>
-            <div class="hero-image">
+            <div class="hero-image" aria-hidden="true">
                 <div class="card-stack">
                     <div class="card glass-card">
                         <i class="fas fa-id-card"></i>
@@ -86,8 +96,8 @@
             <p class="section-subtitle">Find specific details, electoral rolls, and CEO websites for your state.</p>
             <div class="state-search-container">
                 <div class="search-box glass-card">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="state-search" placeholder="Search for your state (e.g. Maharashtra, Uttar Pradesh)...">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <input type="text" id="state-search" placeholder="Search for your state (e.g. Maharashtra, Uttar Pradesh)..." aria-label="Search for your state">
                 </div>
             </div>
             <div class="state-grid" id="state-grid">
@@ -144,8 +154,8 @@
                     </div>
                 </div>
                 <div class="chat-input-area">
-                    <input type="text" id="user-input" placeholder="Ask about registration, forms, or EVMs...">
-                    <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+                    <input type="text" id="user-input" placeholder="Ask about registration, forms, or EVMs..." aria-label="Ask AI Assistant">
+                    <button id="send-btn" aria-label="Send Message"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
                 </div>
             </div>
         </section>

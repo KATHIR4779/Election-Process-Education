@@ -4,6 +4,10 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import winston from 'winston';
+import { LoggingWinston } from '@google-cloud/logging-winston';
 
 dotenv.config();
 
@@ -12,6 +16,29 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 8080;
+
+// Logging configuration (Google Cloud Logging integration)
+const loggingWinston = new LoggingWinston();
+const logger = winston.createLogger({
+    level: 'info',
+    transports: [
+        new winston.transports.Console(),
+        loggingWinston,
+    ],
+});
+
+// Security Middleware
+app.use(helmet({
+    contentSecurityPolicy: false, // For ease of demo
+}));
+
+// Rate Limiting to prevent abuse
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+
+app.use(limiter);
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
@@ -74,6 +101,11 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Election Assistant server running at http://localhost:${port}`);
-});
+// Export for testing
+export default app;
+
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(port, () => {
+        console.log(`Election Assistant server running at http://localhost:${port}`);
+    });
+}
