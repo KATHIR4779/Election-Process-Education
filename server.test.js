@@ -1,8 +1,7 @@
-import request from 'supertest';
-import app from './server.js';
 import { jest } from '@jest/globals';
+import request from 'supertest';
 
-// Mocking the Google Generative AI SDK
+// 1. Mock MUST be defined before importing the app in ESM
 jest.unstable_mockModule('@google/generative-ai', () => ({
     GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
         getGenerativeModel: jest.fn().mockImplementation(() => ({
@@ -18,40 +17,43 @@ jest.unstable_mockModule('@google/generative-ai', () => ({
     }))
 }));
 
-describe('BharatVoter Production API Tests', () => {
+// 2. Dynamically import the app after the mock is set
+const { default: app } = await import('./server.js');
+
+describe('BharatVoter Production API - Final Validation', () => {
     
-    test('GET /health returns healthy status', async () => {
+    test('System Health Check', async () => {
         const response = await request(app).get('/health');
         expect(response.statusCode).toBe(200);
         expect(response.body.status).toBe('healthy');
     });
 
-    test('GET / serves the index page', async () => {
+    test('Frontend Delivery', async () => {
         const response = await request(app).get('/');
         expect(response.statusCode).toBe(200);
         expect(response.text).toContain('Bharat Voter Guide');
     });
 
-    test('POST /api/chat handles valid voter queries', async () => {
+    test('Chat API Handling (Mocked)', async () => {
         const response = await request(app)
             .post('/api/chat')
-            .send({ message: "How do I register?", history: [] });
+            .send({ message: "Register to vote", history: [] });
         expect(response.statusCode).toBe(200);
         expect(response.body).toHaveProperty('response');
-    }, 15000); // 15s timeout for CI stability
+    });
 
-    test('POST /api/chat rejects empty queries (Input Validation)', async () => {
+    test('Input Validation - Empty String', async () => {
         const response = await request(app)
             .post('/api/chat')
             .send({ message: "", history: [] });
         expect(response.statusCode).toBe(400);
     });
 
-    test('POST /api/chat rejects long queries (Security)', async () => {
-        const longMessage = "a".repeat(1001);
+    test('Security - Payload Limit Violation', async () => {
+        const massiveMessage = "a".repeat(1001);
         const response = await request(app)
             .post('/api/chat')
-            .send({ message: longMessage, history: [] });
+            .send({ message: massiveMessage, history: [] });
         expect(response.statusCode).toBe(400);
     });
 });
