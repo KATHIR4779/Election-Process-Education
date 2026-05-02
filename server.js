@@ -9,7 +9,6 @@ import rateLimit from 'express-rate-limit';
 import winston from 'winston';
 import { LoggingWinston } from '@google-cloud/logging-winston';
 import compression from 'compression';
-import { LRUCache } from 'lru-cache';
 import { body, validationResult } from 'express-validator';
 
 dotenv.config();
@@ -20,31 +19,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
-/**
- * GOOGLE CLOUD LOGGING SETUP
- * Integrated with Winston for centralized audit trails.
- */
 const loggingWinston = new LoggingWinston();
 const logger = winston.createLogger({
     level: 'info',
-    transports: [
-        new winston.transports.Console(),
-        loggingWinston,
-    ],
+    transports: [new winston.transports.Console(), loggingWinston],
 });
 
-/**
- * CACHING LAYER
- * Efficiently caches AI responses for 1 hour to reduce API calls and latency.
- */
-const responseCache = new LRUCache({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
-
-/**
- * SECURITY MIDDLEWARE
- */
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -67,15 +47,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-let model;
-if (process.env.GOOGLE_API_KEY) {
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-} else {
-    logger.warn('GOOGLE_API_KEY missing. AI features will be unavailable.');
-    // Mock model for testing if needed, but handled by tests usually
-    model = { startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Unavailable" } }) }) };
-}
+// Initialize Gemini with the FAST model
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
@@ -84,41 +58,43 @@ app.get('/health', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 const systemPrompt = `
-You are the "BharatVoter AI Assistant," a highly accurate expert on the Indian Electoral Process.
-STRICT GUIDELINES:
-1. Prioritize ECI guidelines (Form 6, 8, etc.).
-2. DO NOT hallucinate dates. Redirect to voters.eci.gov.in.
-3. Maintain political neutrality.
+You are the "BharatVoter AI Assistant," an expert on the Indian Electoral Process.
+KEEP RESPONSES CONCISE AND FAST.
+1. Prioritize ECI guidelines.
+2. Redirect to voters.eci.gov.in for dates.
+3. Use Markdown.
 `;
 
+/**
+ * STREAMING CHAT API
+ * Provides near-instant visual feedback by streaming chunks.
+ */
 app.post('/api/chat', [
     body('message').isString().trim().isLength({ min: 1, max: 500 }).escape(),
 ], async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ error: "Invalid input provided." });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ error: "Invalid input." });
+
+    // Set headers for streaming
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
 
     try {
         const { message, history } = req.body;
-        const cacheKey = `chat_${message}_${JSON.stringify(history)}`;
-        
-        if (responseCache.has(cacheKey)) {
-            return res.json({ response: responseCache.get(cacheKey), cached: true });
+        const chat = model.startChat({ history: history || [] });
+
+        const result = await chat.sendMessageStream(systemPrompt + "\nUser Query: " + message);
+
+        for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            res.write(chunkText);
         }
-
-        const chat = model.startChat({
-            history: history || [],
-        });
-
-        const result = await chat.sendMessage(systemPrompt + "\nUser Query: " + message);
-        const text = result.response.text(); 
-
-        responseCache.set(cacheKey, text);
-        res.json({ response: text });
+        
+        res.end();
     } catch (error) {
-        logger.error('Chat error:', error);
-        res.status(500).json({ error: "Service temporarily unavailable." });
+        logger.error('Streaming error:', error);
+        res.status(500).write("Service temporarily slow. Please try again.");
+        res.end();
     }
 });
 
