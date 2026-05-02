@@ -48,6 +48,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Favicon handler
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // System prompt for the election assistant
 const systemPrompt = `
 You are the "BharatVoter AI Assistant," a highly accurate and professional expert on the Indian Electoral Process. 
