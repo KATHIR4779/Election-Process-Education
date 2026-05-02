@@ -8,6 +8,9 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import winston from 'winston';
 import { LoggingWinston } from '@google-cloud/logging-winston';
+import compression from 'compression';
+import { LRUCache } from 'lru-cache';
+import { body, validationResult } from 'express-validator';
 
 dotenv.config();
 
@@ -17,7 +20,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Logging configuration (Google Cloud Logging integration)
+/**
+ * GOOGLE CLOUD LOGGING SETUP
+ * Integrated with Winston for centralized audit trails.
+ */
 const loggingWinston = new LoggingWinston();
 const logger = winston.createLogger({
     level: 'info',
@@ -27,88 +33,92 @@ const logger = winston.createLogger({
     ],
 });
 
-// Security Middleware
-app.use(helmet({
-    contentSecurityPolicy: false, // For ease of demo
-}));
-
-// Rate Limiting to prevent abuse
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+/**
+ * CACHING LAYER
+ * Efficiently caches AI responses for 1 hour to reduce API calls and latency.
+ */
+const responseCache = new LRUCache({
+    max: 100,
+    ttl: 1000 * 60 * 60, // 1 hour
 });
 
-app.use(limiter);
+/**
+ * SECURITY MIDDLEWARE
+ */
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "script-src": ["'self'", "https://www.googletagmanager.com", "'unsafe-inline'"],
+            "connect-src": ["'self'", "https://www.google-analytics.com"],
+        },
+    },
+}));
 
-// Initialize Gemini API
+app.use(compression());
+app.use(cors());
+app.use(express.json({ limit: '10kb' }));
+app.use(express.static('public'));
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    message: { error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', limiter);
+
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
 
-// Favicon handler
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-// System prompt for the election assistant
 const systemPrompt = `
-You are the "BharatVoter AI Assistant," a highly accurate and professional expert on the Indian Electoral Process. 
-Your primary goal is to provide reliable, non-partisan information based on Election Commission of India (ECI) guidelines.
-
-### CORE KNOWLEDGE BASE (STRICT ADHERENCE):
-1. **Eligibility**: Indian citizen, 18+ years old on the qualifying date (Jan 1, April 1, July 1, or Oct 1).
-2. **Registration**: 
-   - **Form 6**: For new voters/shifting from other constituency.
-   - **Form 8**: For shifting within constituency, correction of entries, or replacement of EPIC.
-   - **Portal**: voters.eci.gov.in or Voter Helpline App.
-3. **Voting Process**: 
-   - Identity verification at Polling Station.
-   - Application of Indelible Ink.
-   - Voting via Electronic Voting Machine (EVM) and confirmation via VVPAT (Voter Verifiable Paper Audit Trail).
-4. **ID Proofs**: EPIC (Voter ID) is preferred, but 12 other documents (Aadhar, PAN, Driving License, etc.) are accepted if name is in the roll.
-
-### OPERATIONAL GUIDELINES:
-- **Accuracy First**: If you are unsure about a specific date or local candidate, DO NOT hallucinate. Instead, provide the general process and direct the user to 'https://elections24.eci.gov.in/' or the latest ECI portal.
-- **State-Specifics**: For state elections (Vidhan Sabha), mention that schedules are announced by ECI usually 6-8 weeks before polling.
-- **Neutrality**: Maintain absolute political neutrality. Do not favor any party or candidate.
-- **Structure**: Use Markdown for clarity (bolding, lists, tables).
-- **Disclaimer**: Always include a subtle reminder that for legal/official purposes, the ECI website is the final authority.
-
-Namaste! Let's help the user participate in the world's largest democracy.
+You are the "BharatVoter AI Assistant," a highly accurate expert on the Indian Electoral Process.
+STRICT GUIDELINES:
+1. Prioritize ECI guidelines (Form 6, 8, etc.).
+2. DO NOT hallucinate dates. Redirect to voters.eci.gov.in.
+3. Maintain political neutrality.
 `;
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', [
+    body('message').isString().trim().isLength({ min: 1, max: 500 }).escape(),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ error: "Invalid input provided." });
+    }
+
     try {
         const { message, history } = req.body;
+        const cacheKey = `chat_${message}_${JSON.stringify(history)}`;
         
-        if (!process.env.GOOGLE_API_KEY) {
-            return res.status(500).json({ error: "Google API Key not configured on server." });
+        if (responseCache.has(cacheKey)) {
+            return res.json({ response: responseCache.get(cacheKey), cached: true });
         }
 
         const chat = model.startChat({
             history: history || [],
-            generationConfig: {
-                maxOutputTokens: 1000,
-            },
         });
 
-        const result = await chat.sendMessage(systemPrompt + "\n\nUser Question: " + message);
-        const response = await result.response;
-        const text = response.text();
+        const result = await chat.sendMessage(systemPrompt + "\nUser Query: " + message);
+        const text = result.response.text(); 
 
+        responseCache.set(cacheKey, text);
         res.json({ response: text });
     } catch (error) {
-        console.error('Chat error:', error);
-        res.status(500).json({ error: "Failed to get response from AI assistant." });
+        logger.error('Chat error:', error);
+        res.status(500).json({ error: "Service temporarily unavailable." });
     }
 });
 
-// Export for testing
 export default app;
 
 if (process.env.NODE_ENV !== 'test') {
     app.listen(port, () => {
-        console.log(`Election Assistant server running at http://localhost:${port}`);
+        logger.info(`BharatVoter Server running on port ${port}`);
     });
 }

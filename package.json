@@ -12,13 +12,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/logging-winston": "^6.0.1",
+    "@google-cloud/logging-winston": "^4.1.1",
     "@google/generative-ai": "^0.24.1",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
+    "cross-env": "^10.1.0",
+    "dompurify": "^3.4.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
+    "express-validator": "^7.3.2",
     "helmet": "^8.1.0",
+    "jsdom": "^29.1.1",
+    "lru-cache": "^11.3.5",
     "winston": "^3.19.0"
   },
   "devDependencies": {

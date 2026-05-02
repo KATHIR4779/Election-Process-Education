@@ -3,6 +3,7 @@ npm-debug.log
 .env
 .git
 .gitignore
-implementation_plan.md
-task.md
-walkthrough.md
+server.test.js
+.github
+tests
+coverage
