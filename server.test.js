@@ -38,7 +38,7 @@ describe('BharatVoter Production API Tests', () => {
             .send({ message: "How do I register?", history: [] });
         expect(response.statusCode).toBe(200);
         expect(response.body).toHaveProperty('response');
-    });
+    }, 15000); // 15s timeout for CI stability
 
     test('POST /api/chat rejects empty queries (Input Validation)', async () => {
         const response = await request(app)

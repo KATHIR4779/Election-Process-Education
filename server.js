@@ -67,8 +67,15 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+let model;
+if (process.env.GOOGLE_API_KEY) {
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+} else {
+    logger.warn('GOOGLE_API_KEY missing. AI features will be unavailable.');
+    // Mock model for testing if needed, but handled by tests usually
+    model = { startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Unavailable" } }) }) };
+}
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });

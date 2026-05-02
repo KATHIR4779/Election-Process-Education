@@ -16,4 +16,7 @@ jobs:
       with:
         node-version: '18.x'
     - run: npm install
-    - run: npm test --passWithNoTests
+    - run: npm test
+      env:
+        GOOGLE_API_KEY: "test_key_for_ci_passing"
+        NODE_ENV: test
