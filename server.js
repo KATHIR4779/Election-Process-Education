@@ -20,6 +20,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Enable trust proxy for Cloud Run to prevent rate-limit crashes
+app.set('trust proxy', 1);
+
 /**
  * GOOGLE CLOUD LOGGING SETUP
  * Integrated with Winston for centralized audit trails.
@@ -74,7 +77,7 @@ let model;
 try {
     if (process.env.GOOGLE_API_KEY) {
         const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-        // Using gemini-1.5-flash as the primary stable model
+        // Using gemini-1.5-flash as the primary stable model for maximum compatibility
         model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     }
 } catch (e) {
