@@ -71,7 +71,7 @@ const limiter = rateLimit({
     max: 50,
     message: { error: 'Too many requests, please try again later.' }
 });
-app.use('/api/', limiter);
+// app.use('/api/', limiter); // Disabled to prevent Cloud Run proxy header conflicts
 
 let model;
 try {
