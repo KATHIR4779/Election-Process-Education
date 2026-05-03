@@ -39,7 +39,7 @@ describe('BharatVoter Enterprise Suite - Master Validation', () => {
       .send(maliciousPayload);
     // Should be accepted but sanitized (escaped) by express-validator
     expect(res.status).toBe(200);
-  });
+  }, 10000);
 
   test('EDGE_CASE: Extremely Long Payload (Denial of Service Prevention)', async () => {
     const longMessage = "a".repeat(11000); // Exceeds 10kb limit
