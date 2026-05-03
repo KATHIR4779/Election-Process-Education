@@ -1,39 +1,65 @@
+/**
+ * @file script.js
+ * @description Master logic for BharatVoter UI.
+ * Implements accessibility, sanitization, and state management.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
+    // DOM Selectors
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
+    const stateGrid = document.getElementById('state-grid');
+    const stateSearch = document.getElementById('state-search');
+    const seeMoreBtn = document.getElementById('see-more-btn');
     
     let chatHistory = [];
+    let showAll = false;
+    const INITIAL_LIMIT = 8;
 
-    // Simple reveal animation on scroll
-    const observerOptions = {
-        threshold: 0.1
+    /**
+     * ACCESSIBILITY: Focus Management
+     * Ensures screen readers are notified of new AI content.
+     */
+    const announceToScreenReader = (text) => {
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.classList.add('sr-only');
+        announcement.innerText = `New message: ${text}`;
+        document.body.appendChild(announcement);
+        setTimeout(() => announcement.remove(), 1000);
     };
 
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }
-        });
-    }, observerOptions);
-
+    /**
+     * SECURITY: Frontend Sanitization
+     * Uses DOMPurify to prevent XSS from AI responses.
+     */
     const addMessage = (text, sender) => {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender);
+        messageDiv.setAttribute('role', 'listitem');
         
-        // Simple markdown-to-html for bold and lists
-        const formattedText = text
+        // Clean markdown-style formatting
+        let formattedText = text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\n/g, '<br>')
             .replace(/^\* (.*)/gm, '<li>$1</li>');
         
+        // Final Security Layer: DOMPurify
+        if (window.DOMPurify) {
+            formattedText = DOMPurify.sanitize(formattedText);
+        }
+        
         messageDiv.innerHTML = formattedText;
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        if (sender === 'system') announceToScreenReader(text);
     };
 
+    /**
+     * BUSINESS LOGIC: Chat Handler
+     */
     const handleChat = async () => {
         const message = userInput.value.trim();
         if (!message) return;
@@ -41,12 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage(message, 'user');
         userInput.value = '';
         
-        // Add a loading indicator
         const loadingDiv = document.createElement('div');
         loadingDiv.classList.add('message', 'system');
-        loadingDiv.innerHTML = '<em>BharatVoter is thinking...</em>';
+        loadingDiv.innerHTML = '<em>Consulting ECI Guidelines...</em>';
         chatMessages.appendChild(loadingDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
 
         try {
             const response = await fetch('/api/chat', {
@@ -56,28 +80,22 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await response.json();
-            
             chatMessages.removeChild(loadingDiv);
 
             if (data.error) {
-                addMessage(`I'm sorry, I encountered an error: ${data.error}`, 'system');
+                addMessage(`Status: ${data.error}`, 'system');
             } else {
                 addMessage(data.response, 'system');
                 chatHistory.push({ role: 'user', parts: [{ text: message }] });
                 chatHistory.push({ role: 'model', parts: [{ text: data.response }] });
             }
         } catch (error) {
-            chatMessages.removeChild(loadingDiv);
-            addMessage("Unable to connect to the server. Is it running?", 'system');
+            if (chatMessages.contains(loadingDiv)) chatMessages.removeChild(loadingDiv);
+            addMessage("Network Error: Please verify your internet connection.", 'system');
         }
     };
 
-    sendBtn.addEventListener('click', handleChat);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleChat();
-    });
-
-    // Comprehensive list of Indian States and UTs with CEO links
+    // State Data Definitions
     const statesData = [
         { name: "Andhra Pradesh", url: "https://ceoandhra.nic.in" },
         { name: "Arunachal Pradesh", url: "https://ceoarunachal.nic.in" },
@@ -117,78 +135,38 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: "Puducherry", url: "https://ceopuducherry.py.gov.in" }
     ];
 
-    const stateGrid = document.getElementById('state-grid');
-    const stateSearch = document.getElementById('state-search');
-    const seeMoreBtn = document.getElementById('see-more-btn');
-
-    let showAll = false;
-    const INITIAL_LIMIT = 8; // Roughly 2 lines on desktop (4 per line)
-
-    // Function to render state cards
+    /**
+     * UI: State Card Renderer
+     */
     const renderStates = (filter = "") => {
         stateGrid.innerHTML = "";
-        let filteredStates = statesData.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
+        let filtered = statesData.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
         
-        // Hide button if searching or if already showing all
-        if (filter !== "" || showAll || filteredStates.length <= INITIAL_LIMIT) {
+        if (filter !== "" || showAll || filtered.length <= INITIAL_LIMIT) {
             seeMoreBtn.parentElement.style.display = 'none';
         } else {
             seeMoreBtn.parentElement.style.display = 'flex';
-            filteredStates = filteredStates.slice(0, INITIAL_LIMIT);
+            filtered = filtered.slice(0, INITIAL_LIMIT);
         }
 
-        filteredStates.forEach(state => {
+        filtered.forEach(state => {
             const card = document.createElement('div');
             card.classList.add('state-card', 'glass-card');
-            card.setAttribute('data-state', state.name);
             card.innerHTML = `
                 <h3>${state.name}</h3>
-                <p>Official Electoral Portal</p>
-                <a href="${state.url}" target="_blank" class="state-link">Visit Official Site <i class="fas fa-external-link-alt"></i></a>
+                <p>Electoral Portal</p>
+                <a href="${state.url}" target="_blank" class="state-link" aria-label="Visit ${state.name} official site">Portal Access <i class="fas fa-external-link-alt"></i></a>
             `;
             stateGrid.appendChild(card);
-            
-            // Re-apply observer to new cards
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(30px)';
-            card.style.transition = '0.6s ease-out';
-            observer.observe(card);
         });
     };
 
-    // Initial render
+    // Event Bindings
+    sendBtn.addEventListener('click', handleChat);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleChat(); });
+    seeMoreBtn.addEventListener('click', () => { showAll = true; renderStates(stateSearch.value); });
+    stateSearch.addEventListener('input', (e) => renderStates(e.target.value));
+
+    // Initial Load
     renderStates();
-
-    seeMoreBtn.addEventListener('click', () => {
-        showAll = true;
-        renderStates(stateSearch.value);
-    });
-
-    stateSearch.addEventListener('input', (e) => {
-        renderStates(e.target.value);
-    });
-
-    // Smooth scrolling for nav links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('href');
-            document.querySelector(targetId).scrollIntoView({
-                behavior: 'smooth'
-            });
-
-            // Update active link
-            document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
-            this.classList.add('active');
-        });
-    });
-
-
-
-    document.querySelectorAll('.feature-card, .timeline-item, .state-card').forEach(el => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(30px)';
-        el.style.transition = '0.6s ease-out';
-        observer.observe(el);
-    });
 });

@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     
     <!-- Google tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
@@ -142,28 +143,31 @@
             </div>
         </section>
 
-        <section id="assistant" class="assistant-section">
-            <div class="chat-container glass-card">
-                <div class="chat-header">
-                    <div class="status-dot"></div>
-                    <h3>BharatVoter AI Assistant</h3>
+        <!-- AI Assistant Section -->
+        <section class="assistant-card glass-card" aria-labelledby="assistant-title">
+            <div class="assistant-header">
+                <div class="status-indicator" aria-hidden="true"></div>
+                <h2 id="assistant-title">BharatVoter AI Assistant</h2>
+            </div>
+            
+            <div class="chat-container" id="chat-messages" role="log" aria-label="Chat history">
+                <div class="message system" role="listitem">
+                    Namaste! I'm your AI assistant. How can I help you today with information about Indian elections?
                 </div>
-                <div id="chat-messages" class="chat-messages">
-                    <div class="message system">
-                        Namaste! I'm your AI assistant. How can I help you today with information about Indian elections?
-                    </div>
-                </div>
-                <div class="chat-input-area">
-                    <input type="text" id="user-input" placeholder="Ask about registration, forms, or EVMs..." aria-label="Ask AI Assistant">
-                    <button id="send-btn" aria-label="Send Message"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
-                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Ask about registration, forms, or EVMs..." aria-label="Type your question about Indian elections here">
+                <button id="send-btn" aria-label="Send message to AI assistant">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                </button>
             </div>
         </section>
     </main>
 
     <footer>
         <p>&copy; 2026 Bharat Voter Guide. Information provided is based on official ECI guidelines.</p>
-        <p><a href="https://voters.eci.gov.in/" target="_blank" style="color: var(--secondary); text-decoration: none;">Verify on Official ECI Portal <i class="fas fa-external-link-alt"></i></a></p>
+        <p><a href="https://voters.eci.gov.in" target="_blank" class="footer-link" aria-label="Verify information on official ECI portal">Verify on Official ECI Portal <i class="fas fa-external-link-alt" aria-hidden="true"></i></a></p>
     </footer>
 
     <script src="script.js"></script>
