@@ -76,8 +76,8 @@ app.use('/api/', limiter);
 let model;
 try {
     if (process.env.GOOGLE_API_KEY) {
+        // Service Account Bound keys (AQ.) work best with the latest stable model definitions
         const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-        // Using gemini-1.5-flash as the primary stable model for maximum compatibility
         model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     }
 } catch (e) {
