@@ -1,5 +1,5 @@
 import express from 'express';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
@@ -16,11 +16,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 8080;
-
 app.set('trust proxy', 1);
 
-const log  = (msg, data = '') => console.log(`[INFO]  ${msg}`, data);
-const err  = (msg, data = '') => console.error(`[ERROR] ${msg}`, data);
+const log = (msg) => console.log(`[INFO]  ${msg}`);
+const err = (msg, e = '') => console.error(`[ERROR] ${msg}`, e);
 
 const responseCache = new LRUCache({ max: 100, ttl: 1000 * 60 * 60 });
 
@@ -33,7 +32,6 @@ app.use(helmet({
             'img-src':     ["'self'", 'data:', 'https://www.gstatic.com'],
         },
     },
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 app.use(compression());
@@ -42,31 +40,25 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.static('public'));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-// ── Vertex AI Initialisation ──────────────────────────────────────────────────
-// Cloud Run uses Application Default Credentials (ADC) automatically.
-// Locally we need GOOGLE_APPLICATION_CREDENTIALS env var pointing to SA JSON.
-const PROJECT_ID = 'election-process-495110';
-const LOCATION   = 'us-central1';
-const MODEL_ID   = 'gemini-2.0-flash-001'; // Versioned ID required for Vertex AI
-
-const SYSTEM_INSTRUCTION = `You are the "BharatVoter AI Assistant," a highly accurate expert 
+const SYSTEM_PROMPT = `You are the "BharatVoter AI Assistant," a highly accurate expert 
 on the Indian Electoral Process. Use official ECI guidelines. Be clear and concise. 
 Do NOT speculate on election dates. Redirect to voters.eci.gov.in for live information. 
-Maintain strict political neutrality.`;
+Maintain strict political neutrality at all times.`;
 
-let generativeModel;
+let model;
 try {
-    const vertexai = new VertexAI({ project: PROJECT_ID, location: LOCATION });
-    generativeModel = vertexai.getGenerativeModel({
-        model: MODEL_ID,
-        systemInstruction: SYSTEM_INSTRUCTION,
+    const key = process.env.GOOGLE_API_KEY;
+    if (!key) throw new Error('GOOGLE_API_KEY is not set');
+    const genAI = new GoogleGenerativeAI(key);
+    model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        systemInstruction: SYSTEM_PROMPT,
     });
-    log('Vertex AI model initialised', `project=${PROJECT_ID} model=${MODEL_ID}`);
+    log('Gemini AI model ready (gemini-2.0-flash)');
 } catch (e) {
-    err('Vertex AI init failed', e.message);
+    err('AI init failed:', e.message);
 }
 
-// ── Routes ───────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() })
 );
@@ -79,35 +71,32 @@ app.post('/api/chat', [
 
     try {
         const { message, history = [] } = req.body;
-        const cacheKey = `v4_${message}`;
+        const cacheKey = `v5_${message}`;
 
         if (responseCache.has(cacheKey)) {
             return res.json({ response: responseCache.get(cacheKey) });
         }
 
-        if (!generativeModel) throw new Error('AI model is not available.');
+        if (!model) throw new Error('AI service unavailable — check API key.');
 
-        // Vertex AI SDK uses startChat / sendMessage
-        const chat = generativeModel.startChat({ history });
+        const chat = model.startChat({ history });
         const result = await chat.sendMessage(message);
-        const text   = result.response?.candidates?.[0]?.content?.parts?.[0]?.text
-                    ?? 'Sorry, I could not generate a response. Please try again.';
+        const text = result.response.text();
 
         responseCache.set(cacheKey, text);
         res.json({ response: text });
 
     } catch (e) {
-        err('Chat error', e.message);
-
-        if (e.message?.includes('429')) {
-            return res.status(429).json({ error: 'Rate limit reached. Please try again in a moment.' });
+        err('Chat error:', e.message);
+        if (e.status === 429 || e.message?.includes('429')) {
+            return res.status(429).json({ error: 'Rate limit reached. Please try again shortly.' });
         }
-        res.status(500).json({ error: `Service error: ${e.message}` });
+        res.status(500).json({ error: `AI error: ${e.message}` });
     }
 });
 
 export default app;
 
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(port, () => log(`BharatVoter server listening on port ${port}`));
+    app.listen(port, () => log(`Server running on port ${port}`));
 }
