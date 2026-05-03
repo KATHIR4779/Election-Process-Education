@@ -7,7 +7,9 @@ import { fileURLToPath } from 'url';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import winston from 'winston';
+import { LoggingWinston } from '@google-cloud/logging-winston';
 import compression from 'compression';
+import { LRUCache } from 'lru-cache';
 import { body, validationResult } from 'express-validator';
 
 dotenv.config();
@@ -18,77 +20,111 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
+/**
+ * GOOGLE CLOUD LOGGING SETUP
+ * Integrated with Winston for centralized audit trails.
+ */
+const transports = [new winston.transports.Console()];
+
+// Only add Google Cloud Logging if we're in production to prevent local authentication errors
+if (process.env.NODE_ENV === 'production') {
+    transports.push(new LoggingWinston());
+}
+
 const logger = winston.createLogger({
     level: 'info',
-    format: winston.format.simple(),
-    transports: [new winston.transports.Console()],
+    transports: transports,
 });
 
+/**
+ * CACHING LAYER
+ * Efficiently caches AI responses for 1 hour to reduce API calls and latency.
+ */
+const responseCache = new LRUCache({
+    max: 100,
+    ttl: 1000 * 60 * 60, // 1 hour
+});
+
+/**
+ * SECURITY MIDDLEWARE
+ */
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "script-src": ["'self'", "https://www.googletagmanager.com", "'unsafe-inline'"],
-            "connect-src": ["'self'", "https://www.google-analytics.com", "*.run.app"],
+            "connect-src": ["'self'", "https://www.google-analytics.com"],
         },
     },
 }));
 
-// Compression settings
-app.use((req, res, next) => {
-    if (req.path === '/api/chat') {
-        next();
-    } else {
-        compression()(req, res, next);
-    }
-});
-
+app.use(compression());
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 50,
     message: { error: 'Too many requests, please try again later.' }
 });
 app.use('/api/', limiter);
 
-// Use the STABLE gemini-pro model
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+let model;
+if (process.env.GOOGLE_API_KEY) {
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+} else {
+    logger.warn('GOOGLE_API_KEY missing. AI features will be unavailable.');
+    // Mock model for testing if needed, but handled by tests usually
+    model = { startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Unavailable" } }) }) };
+}
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'healthy' });
+    res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 const systemPrompt = `
-You are the "BharatVoter AI Assistant."
-Expert on Indian Elections. Provide accurate, non-partisan info.
-Use Markdown.
+You are the "BharatVoter AI Assistant," a highly accurate expert on the Indian Electoral Process.
+STRICT GUIDELINES:
+1. Prioritize ECI guidelines (Form 6, 8, etc.).
+2. DO NOT hallucinate dates. Redirect to voters.eci.gov.in.
+3. Maintain political neutrality.
 `;
 
 app.post('/api/chat', [
-    body('message').isString().trim().notEmpty().escape(),
+    body('message').isString().trim().isLength({ min: 1, max: 500 }).escape(),
 ], async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ error: "Invalid input." });
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ error: "Invalid input provided." });
+    }
 
     try {
         const { message, history } = req.body;
+        const cacheKey = `chat_${message}_${JSON.stringify(history)}`;
         
-        // Use standard generation (non-stream) for maximum reliability first
+        if (responseCache.has(cacheKey)) {
+            return res.json({ response: responseCache.get(cacheKey), cached: true });
+        }
+
         const chat = model.startChat({
             history: history || [],
         });
 
         const result = await chat.sendMessage(systemPrompt + "\nUser Query: " + message);
-        const text = result.response.text();
+        const text = result.response.text(); 
 
+        responseCache.set(cacheKey, text);
         res.json({ response: text });
     } catch (error) {
         logger.error('Chat error:', error);
-        res.status(500).json({ error: "The AI Assistant is currently busy. Please try again." });
+        if (error.status === 429) {
+            return res.status(429).json({ error: "AI Daily Quota Exceeded. Please try again tomorrow or use a different API key." });
+        }
+        res.status(500).json({ error: "Service temporarily unavailable." });
     }
 });
 

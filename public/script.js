@@ -2,23 +2,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
+    
     let chatHistory = [];
 
-    const formatMarkdown = (text) => {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^\* (.*)/gm, '<li>$1</li>')
-            .replace(/\n/g, '<br>');
+    // Simple reveal animation on scroll
+    const observerOptions = {
+        threshold: 0.1
     };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
 
     const addMessage = (text, sender) => {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender);
-        messageDiv.innerHTML = formatMarkdown(text);
+        
+        // Simple markdown-to-html for bold and lists
+        const formattedText = text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>')
+            .replace(/^\* (.*)/gm, '<li>$1</li>');
+        
+        messageDiv.innerHTML = formattedText;
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        return messageDiv;
     };
 
     const handleChat = async () => {
@@ -28,7 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage(message, 'user');
         userInput.value = '';
         
-        const loadingDiv = addMessage('<em>Thinking...</em>', 'system');
+        // Add a loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.classList.add('message', 'system');
+        loadingDiv.innerHTML = '<em>BharatVoter is thinking...</em>';
+        chatMessages.appendChild(loadingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
 
         try {
             const response = await fetch('/api/chat', {
@@ -38,10 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await response.json();
+            
             chatMessages.removeChild(loadingDiv);
 
             if (data.error) {
-                addMessage(`Error: ${data.error}`, 'system');
+                addMessage("I'm sorry, I encountered an error. Please make sure the API key is configured correctly.", 'system');
             } else {
                 addMessage(data.response, 'system');
                 chatHistory.push({ role: 'user', parts: [{ text: message }] });
@@ -49,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             chatMessages.removeChild(loadingDiv);
-            addMessage("Unable to connect to the server. Please check your internet connection.", 'system');
+            addMessage("Unable to connect to the server. Is it running?", 'system');
         }
     };
 
@@ -58,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') handleChat();
     });
 
-    // --- State Directory Logic ---
+    // Comprehensive list of Indian States and UTs with CEO links
     const statesData = [
         { name: "Andhra Pradesh", url: "https://ceoandhra.nic.in" },
         { name: "Arunachal Pradesh", url: "https://ceoarunachal.nic.in" },
@@ -103,21 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const seeMoreBtn = document.getElementById('see-more-btn');
 
     let showAll = false;
-    const INITIAL_LIMIT = 8;
+    const INITIAL_LIMIT = 8; // Roughly 2 lines on desktop (4 per line)
 
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }
-        });
-    }, { threshold: 0.1 });
-
+    // Function to render state cards
     const renderStates = (filter = "") => {
         stateGrid.innerHTML = "";
         let filteredStates = statesData.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
         
+        // Hide button if searching or if already showing all
         if (filter !== "" || showAll || filteredStates.length <= INITIAL_LIMIT) {
             seeMoreBtn.parentElement.style.display = 'none';
         } else {
@@ -128,12 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredStates.forEach(state => {
             const card = document.createElement('div');
             card.classList.add('state-card', 'glass-card');
+            card.setAttribute('data-state', state.name);
             card.innerHTML = `
                 <h3>${state.name}</h3>
                 <p>Official Electoral Portal</p>
                 <a href="${state.url}" target="_blank" class="state-link">Visit Official Site <i class="fas fa-external-link-alt"></i></a>
             `;
             stateGrid.appendChild(card);
+            
+            // Re-apply observer to new cards
             card.style.opacity = '0';
             card.style.transform = 'translateY(30px)';
             card.style.transition = '0.6s ease-out';
@@ -141,10 +156,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // Initial render
     renderStates();
-    stateSearch.addEventListener('input', (e) => renderStates(e.target.value));
+
     seeMoreBtn.addEventListener('click', () => {
         showAll = true;
         renderStates(stateSearch.value);
+    });
+
+    stateSearch.addEventListener('input', (e) => {
+        renderStates(e.target.value);
+    });
+
+    // Smooth scrolling for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            document.querySelector(targetId).scrollIntoView({
+                behavior: 'smooth'
+            });
+
+            // Update active link
+            document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+
+
+    document.querySelectorAll('.feature-card, .timeline-item, .state-card').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(30px)';
+        el.style.transition = '0.6s ease-out';
+        observer.observe(el);
     });
 });
