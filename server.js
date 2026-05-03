@@ -59,13 +59,16 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "script-src": ["'self'", "https://www.googletagmanager.com", "'unsafe-inline'"],
+            "script-src": ["'self'", "https://www.googletagmanager.com", "https://cdnjs.cloudflare.com", "'unsafe-inline'"],
             "connect-src": ["'self'", "https://www.google-analytics.com"],
             "img-src": ["'self'", "data:", "https://www.gstatic.com"],
         },
     },
     crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
+
+// Favicon Fix
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 /**
  * PERFORMANCE OPTIMIZATION
