@@ -60,7 +60,7 @@ app.use(helmet({
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "script-src": ["'self'", "https://www.googletagmanager.com", "https://cdnjs.cloudflare.com", "'unsafe-inline'"],
-            "connect-src": ["'self'", "https://www.google-analytics.com"],
+            "connect-src": ["'self'", "https://www.google-analytics.com", "https://cdnjs.cloudflare.com"],
             "img-src": ["'self'", "data:", "https://www.gstatic.com"],
         },
     },
