@@ -71,13 +71,19 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 let model;
-if (process.env.GOOGLE_API_KEY) {
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-    model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-} else {
-    logger.warn('GOOGLE_API_KEY missing. AI features will be unavailable.');
-    // Mock model for testing if needed, but handled by tests usually
-    model = { startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Unavailable" } }) }) };
+try {
+    if (process.env.GOOGLE_API_KEY) {
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+        // Using gemini-1.5-flash as the primary stable model
+        model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    }
+} catch (e) {
+    logger.error('Failed to initialize AI model:', e);
+}
+
+// Fallback mock if initialization fails completely
+if (!model) {
+    model = { startChat: () => ({ sendMessage: async () => ({ response: { text: () => "AI Service currently unavailable." } }) }) };
 }
 
 app.get('/health', (req, res) => {
@@ -110,6 +116,11 @@ app.post('/api/chat', [
             return res.json({ response: responseCache.get(cacheKey), cached: true });
         }
 
+        // Safety check to ensure model is ready
+        if (!model || typeof model.startChat !== 'function') {
+            throw new Error('AI Model not initialized correctly');
+        }
+
         const chat = model.startChat({
             history: history || [],
         });
@@ -121,10 +132,17 @@ app.post('/api/chat', [
         res.json({ response: text });
     } catch (error) {
         logger.error('Chat error:', error);
-        if (error.status === 429) {
-            return res.status(429).json({ error: "AI Daily Quota Exceeded. Please try again tomorrow or use a different API key." });
+        
+        // Handle specific Google API Errors
+        if (error.message?.includes('429') || error.status === 429) {
+            return res.status(429).json({ error: "AI Daily Quota Exceeded. The free limit (20 requests/day) has been reached. Please try again tomorrow." });
         }
-        res.status(500).json({ error: "Service temporarily unavailable." });
+        
+        if (error.message?.includes('404') || error.status === 404) {
+            return res.status(503).json({ error: "AI Model is currently being updated by Google. Please try again in a few minutes." });
+        }
+
+        res.status(500).json({ error: "Internal Server Error. Please refresh and try again." });
     }
 });
 

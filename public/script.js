@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatMessages.removeChild(loadingDiv);
 
             if (data.error) {
-                addMessage("I'm sorry, I encountered an error. Please make sure the API key is configured correctly.", 'system');
+                addMessage(`I'm sorry, I encountered an error: ${data.error}`, 'system');
             } else {
                 addMessage(data.response, 'system');
                 chatHistory.push({ role: 'user', parts: [{ text: message }] });
