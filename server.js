@@ -47,7 +47,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 // Locally we need GOOGLE_APPLICATION_CREDENTIALS env var pointing to SA JSON.
 const PROJECT_ID = 'election-process-495110';
 const LOCATION   = 'us-central1';
-const MODEL_ID   = 'gemini-1.5-flash';
+const MODEL_ID   = 'gemini-2.0-flash-001'; // Versioned ID required for Vertex AI
 
 const SYSTEM_INSTRUCTION = `You are the "BharatVoter AI Assistant," a highly accurate expert 
 on the Indian Electoral Process. Use official ECI guidelines. Be clear and concise. 
